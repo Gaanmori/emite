@@ -10,6 +10,11 @@ Nace como el motor de facturación de [Dorato](https://github.com/Gaanmori/dorat
 items, impuestos y totales"), no específico de un negocio — la idea es que cualquier
 otra empresa pueda desplegar su propia instancia y adaptarla.
 
+**Dorato es la prueba piloto, no el objetivo final.** La meta a mediano plazo es
+poder cobrar por el uso de Emite a otras empresas (ver sección 2b, "Modelo de
+negocio"). Eso condiciona varias decisiones de abajo (licencia, modelo de
+despliegue) que de otra forma serían más simples.
+
 > **Estado: en planeación.** Todavía no hay código. Este README es el plan de trabajo
 > completo: alcance legal, arquitectura, roadmap y prerrequisitos.
 
@@ -54,6 +59,23 @@ problema. Aun así, antes de que una segunda empresa real lo use en producción,
 vale la pena una segunda confirmación puntual sobre cualquier matiz nuevo de la DIAN
 en el momento.
 
+**⚠️ Pregunta nueva y pendiente para el mismo asesor, específica por el modelo de
+negocio (octubre 2026):** la validación que ya se hizo cubre el caso en que *cada
+empresa despliega y opera su propia instancia*. Pero si el plan es cobrar por
+operar/alojar nosotros mismos la instancia de cada cliente (aunque esté técnicamente
+aislada — su propia base de datos, su propio certificado, su propio NIT), eso es un
+escenario distinto que **no quedó cubierto por esa primera confirmación**. La
+diferencia entre "vender software que tú instalas" y "operar la infraestructura de
+facturación de un tercero por una tarifa" es exactamente la frontera que separa a un
+facturador directo de un Proveedor Tecnológico — y "quién tiene las manos en el
+servidor" puede pesar tanto como "a nombre de quién se transmite". Antes de ofrecer
+alojamiento gestionado como producto de pago (sección 2b), hay que llevarle al
+asesor esta pregunta puntual: *"si nosotros alojamos y operamos la instancia aislada
+de cada cliente, cobrándoles una tarifa, pero cada cliente mantiene su propio
+certificado y su propia habilitación ante la DIAN, ¿seguimos siendo 'facturador
+directo con software propio' por cada cliente, o eso ya nos acerca al estatus de
+Proveedor Tecnológico?"*
+
 **Viabilidad técnica:** alcanzable. No es investigación de frontera — es implementar
 un protocolo gubernamental bien documentado (XML UBL 2.1, firma XAdES-BES, cálculo
 de CUFE/CUDE, llamadas a un webservice) que ya implementaron Alegra, Factus, Siigo,
@@ -92,11 +114,58 @@ código de terceros:
 | **BSL / Elastic License** (código visible, uso restringido) | Cualquiera la lee, la audita y la auto-aloja gratis; pero *ofrecerla como servicio hospedado a terceros* requiere licencia comercial | Modelo de Sentry, Elastic, MongoDB (antes). No es "open source" en el sentido estricto (OSI), aunque el código es público |
 | **Dual-license (ej. AGPL + comercial)** | Gratis bajo AGPL para quien se auto-aloje y comparta cambios; licencia comercial de pago para incrustarla en software propietario | Modelo más común para monetizar un proyecto "open source" de verdad (GitLab, MinIO) |
 
-**Recomendación:** empezar con BSL o dual-license (AGPL + comercial), no con
-MIT/Apache puro, para no regalar la ventaja a un competidor desde el primer commit.
-Pendiente de decisión — por eso **todavía no hay archivo `LICENSE`** en este repo
-(sin uno, por defecto el código está bajo "todos los derechos reservados", que es la
-postura más segura mientras se decide).
+**Recomendación, ahora con la intención de monetizar confirmada: BSL.** Es
+prácticamente el caso de uso para el que se diseñó esa licencia (Sentry, Elastic):
+código visible y auditable, gratis para que cualquiera lo auto-aloje para sí mismo,
+pero *ofrecerlo como servicio alojado a terceros* (justo el producto de pago de la
+sección 2b) requiere una licencia comercial — la tuya. Eso evita que alguien tome el
+motor y lance su propio "Emite hosteado" compitiendo contigo con tu propio código.
+AGPL + dual-license sigue siendo una alternativa razonable (protege distinto: exige
+que cualquiera que lo use para dar un servicio abra sus cambios, en vez de prohibirlo
+sin licencia tuya), pero BSL encaja mejor con un modelo de negocio basado en alojar
+instancias, no en vender módulos cerrados.
+
+Pendiente de decisión final — por eso **todavía no hay archivo `LICENSE`** en este
+repo (sin uno, por defecto el código está bajo "todos los derechos reservados", que
+es la postura más segura mientras se decide).
+
+---
+
+## 2b. Modelo de negocio: cómo se monetiza
+
+Confirmado (octubre 2026): la intención es cobrar por el uso de Emite a futuro.
+Dorato es la prueba piloto para validar que el motor funciona de punta a punta antes
+de ofrecerlo a nadie más.
+
+Dentro de la restricción legal de la sección 0 (no se puede operar una sola
+infraestructura compartida facturando por varios NITs sin ser Proveedor
+Tecnológico), hay tres formas de cobrar que sí encajan, de la más simple/segura a la
+que necesita más confirmación legal:
+
+1. **Soporte y mantenimiento por suscripción** (la más limpia legalmente): el
+   código se auto-aloja la propia empresa cliente, nunca toca infraestructura de
+   Emite, pero paga una tarifa recurrente por soporte, ayuda de puesta en marcha, y
+   sobre todo por **mantenerse al día con los cambios del Anexo Técnico de la DIAN**
+   (justo el trabajo de la Fase 8 del roadmap). Esto es vender un servicio
+   profesional, no operar su facturación — no hay zona gris aquí.
+2. **Licencia comercial** (vía BSL o dual-license, sección 2): empresas que quieren
+   auto-alojar el motor pero sin cumplir las condiciones de la licencia abierta (ej.
+   no quieren compartir sus modificaciones, o quieren incrustarlo en software
+   propietario) pagan por una licencia sin esas restricciones. Tampoco hay zona
+   gris: siguen auto-alojando, solo cambian los términos bajo los que usan el código.
+3. **Alojamiento gestionado, instancia por cliente** (la que probablemente más se
+   parece a "cobrar por el uso del API" en la intención original): Emite despliega y
+   opera la instancia de cada cliente, aislada (su propia base de datos, su propio
+   certificado, su propio NIT), y cobra una tarifa mensual o por documento emitido.
+   Es el modelo más parecido a un negocio SaaS tradicional, y **es el que tiene la
+   pregunta legal pendiente marcada con ⚠️ en la sección 0** — no empezar a
+   ofrecerlo como producto hasta tener esa respuesta.
+
+No hay que elegir solo una — son compatibles entre sí (de hecho 1 y 3 normalmente
+van juntos: quien te paga por alojamiento también te está pagando, de facto, el
+mantenimiento). Lo que sí hay que tener claro es que **(1) y (2) se pueden empezar a
+ofrecer apenas el motor funcione**, mientras que **(3) espera a la confirmación
+legal puntual**.
 
 ---
 
@@ -107,9 +176,10 @@ postura más segura mientras se decide).
 - El código es el mismo para todos, pero **nunca hay una sola base de datos ni un
   solo proceso transmitiendo documentos de varios NITs distintos**, salvo que el
   propio adoptante corra varias sedes bajo su mismo NIT (eso sí es válido).
-- "Nosotros alojamos tu instancia por una tarifa" es viable después (sigue siendo
-  "cada cliente con su instancia aislada"), pero antes de ofrecerlo hay que
-  confirmarlo puntualmente con el asesor legal.
+- El alojamiento gestionado por tarifa (ver modelo de negocio, sección 2b, opción 3)
+  sigue este mismo principio — "cada cliente con su instancia aislada" — pero antes
+  de ofrecerlo como producto hace falta la confirmación legal puntual marcada con
+  ⚠️ en la sección 0.
 
 ---
 
@@ -261,10 +331,17 @@ parches de seguridad, revisión de aportes de la comunidad.
 ## 9. Decisiones pendientes
 
 1. ~~Nombre del proyecto~~ **hecho: Emite.**
-2. ~~Validación legal inicial~~ **hecho (octubre 2026).**
-3. **Licencia** (sección 2): ¿MIT/Apache, AGPL, BSL/dual-license?
-4. **Stack técnico**: ¿Node/TypeScript, Python, o Dart backend?
-5. **Prioridad relativa**: ¿esto pasa a ser lo siguiente a trabajar, o sigue en cola
+2. ~~Validación legal inicial (modelo auto-alojado por cada empresa)~~ **hecho
+   (octubre 2026).**
+3. ~~¿Se monetiza?~~ **hecho: sí, a futuro.** Dorato es la prueba piloto.
+4. **⚠️ Validación legal específica del alojamiento gestionado** (sección 0): ¿operar
+   nosotros la instancia aislada de cada cliente, cobrando una tarifa, sigue siendo
+   "facturador directo" por cliente, o nos acerca a Proveedor Tecnológico? Bloquea
+   solo la opción 3 del modelo de negocio (sección 2b) — las opciones 1 y 2 no
+   dependen de esto.
+5. **Licencia** (sección 2): confirmar BSL como recomendación, o decidir otra.
+6. **Stack técnico**: ¿Node/TypeScript, Python, o Dart backend?
+7. **Prioridad relativa**: ¿esto pasa a ser lo siguiente a trabajar, o sigue en cola
    detrás de lo pendiente de arquitectura de Dorato?
 
 ---
