@@ -77,7 +77,7 @@ directo con software propio' por cada cliente, o eso ya nos acerca al estatus de
 Proveedor Tecnológico?"*
 
 **Viabilidad técnica:** alcanzable. No es investigación de frontera — es implementar
-un protocolo gubernamental bien documentado (XML UBL 2.1, firma XAdES-BES, cálculo
+un protocolo gubernamental bien documentado (XML UBL 2.1, firma XAdES-EPES, cálculo
 de CUFE/CUDE, llamadas a un webservice) que ya implementaron Alegra, Factus, Siigo,
 MATIAS API y otros. Hay que mantenerlo cuando la DIAN cambie el Anexo Técnico, pero
 nada ahí es imposible de construir con el tiempo adecuado.
@@ -220,6 +220,16 @@ el mantenimiento).
   autorizado, vigencia.
 - Ambiente activo: habilitación/pruebas vs producción.
 - `testSetId` / credenciales que la DIAN entrega durante la habilitación de ese NIT.
+- **URL del webservice de la DIAN asignada a ese tenant.** No es una constante
+  global del sistema — la DIAN la entrega por participante, visible en su portal
+  de "catálogo de participante" después de registrarse (confirmado en el Anexo
+  Técnico, ver [`INVESTIGACION_FASE1.md`](INVESTIGACION_FASE1.md) sección 4).
+- **Dos secretos más, igual de sensibles que el certificado, y distintos entre sí:**
+  la `ClTec` (clave técnica del rango de numeración, para el CUFE de factura) y el
+  `Software-PIN` (asignado al registrar el software en el catálogo de participante,
+  para el CUDE del DEE POS). Ninguno de los dos viaja en el XML — van en el cálculo
+  del CUFE/CUDE y hay que guardarlos cifrados por tenant igual que el certificado
+  (confirmado en [`INVESTIGACION_FASE1.md`](INVESTIGACION_FASE1.md) secciones 1-2).
 
 ### 4.2 Entrada: el contrato de "venta"
 Una venta llega como un objeto neutral: items (nombre, cantidad, precio, tarifa de
@@ -234,7 +244,7 @@ identificador interno de la venta en el sistema de origen.
 2. Mapea los datos a los catálogos oficiales de la DIAN (unidad de medida, tipos de
    tributo, municipios/departamentos, tipo de documento, etc.).
 3. Genera el XML UBL 2.1 correspondiente.
-4. Lo firma digitalmente (XAdES-BES) con el certificado de ese tenant.
+4. Lo firma digitalmente (XAdES-EPES) con el certificado de ese tenant.
 5. Calcula el CUFE (factura) o CUDE (DEE POS) con el algoritmo oficial.
 6. Lo transmite al webservice de la DIAN (ambiente activo de ese tenant) y procesa
    la respuesta (aceptado, rechazado, con qué errores).
@@ -256,14 +266,14 @@ identificador interno de la venta en el sistema de origen.
 
 ## 5. Arquitectura técnica
 
-- **No como Edge Function de Supabase.** La firma XAdES-BES, el manejo de
+- **No como Edge Function de Supabase.** La firma XAdES-EPES, el manejo de
   certificados, las llamadas SOAP/XML a la DIAN y los catálogos grandes exceden lo
   cómodo para una función serverless ligera. Es un servicio backend aparte,
   desplegado en su propio sitio (VPS pequeño, Fly.io, Railway, Render — a decidir),
   con su propia base de datos.
 - **Stack: Java/Kotlin** (decidido, octubre 2026). Se eligió sobre Node/TS, Python y
   Dart específicamente por la pieza más delicada de todo el proyecto — la firma
-  XAdES-BES —, donde Java tiene la librería más madura y probada en producción:
+  XAdES-EPES —, donde Java tiene la librería más madura y probada en producción:
   [DSS (Digital Signature Services)](https://github.com/esig/dss) de la Comisión
   Europea, el estándar de facto para XAdES, usado por varias integraciones de
   facturación electrónica en LatAm. También aporta un cliente SOAP/XML maduro
@@ -276,6 +286,13 @@ identificador interno de la venta en el sistema de origen.
   una sintaxis más moderna que Java puro — misma librería (DSS), mismo ecosistema.
   Framework de API sugerido: Spring Boot o Ktor (más liviano, más idiomático en
   Kotlin) — a definir al empezar la Fase 2.
+- **Parámetros exactos de la firma, ya verificados contra el Anexo Técnico**
+  (detalle completo en [`INVESTIGACION_FASE1.md`](INVESTIGACION_FASE1.md) sección
+  3): XAdES-EPES con política de firma declarada — URL
+  `https://facturaelectronica.dian.gov.co/politicadefirma/v2/politicadefirmav2.pdf`,
+  hash SHA256 o SHA512 de ese PDF, algoritmo de firma `rsa-sha256`,
+  canonicalización `xml-c14n` sin comentarios. DSS soporta XAdES-EPES de forma
+  nativa, así que esto es configuración, no un problema de librería.
 - **Cómo se conecta con Dorato (o cualquier otro consumidor): HTTP/REST, nada más.**
   El lenguaje del motor es invisible para quien lo consume — Dorato sigue siendo
   Flutter/Dart y nunca necesita saber que Emite está en Java, de la misma forma que
@@ -345,9 +362,22 @@ Proveedor Tecnológico~~ **hecho (octubre 2026)**. ~~Decidir nombre del proyecto
 **hecho: Emite**. ~~Decidir stack técnico~~ **hecho: Java/Kotlin**. Pendiente:
 licencia (sección 2).
 
-**Fase 1 — Investigación y especificación** *(sin prerrequisitos, se puede arrancar ya)*
-Todo lo de la sección 7: estudiar los dos Anexos Técnicos, documentar catálogos,
-algoritmo CUFE/CUDE, contratos de los webservices, casos de prueba de habilitación.
+**Fase 1 — Investigación y especificación** *(en progreso, octubre 2026)* — ver
+[`INVESTIGACION_FASE1.md`](INVESTIGACION_FASE1.md) para el detalle completo con
+citas de página.
+~~Algoritmo CUFE (factura) y CUDE (DEE POS, con su diferencia real: usa
+`Software-PIN` en vez de `ClTec`)~~ **hecho y verificado computacionalmente** contra
+los ejemplos oficiales de ambos Anexos Técnicos. ~~Especificación exacta de la firma
+XAdES-EPES~~ **hecho** (política, algoritmos, canonicalización — igual en ambos
+documentos). ~~Contratos de los webservices~~ **hecho** a nivel de protocolo para
+ambos tipos de documento, incluidas las URLs de QR de habilitación y producción —
+queda una duda sin resolver solo con el PDF (si `SendBillAsync` y
+`SendEventUpdateStatus` existen de verdad para DEE POS; el documento es
+inconsistente al respecto).
+Pendiente: catálogos completos (unidad de medida, tributos, municipios — son
+tablas largas, mejor extraerlas directo a la Fase 2), el set oficial de casos de
+prueba de habilitación, y el portal de "catálogo de participante" (requiere
+credenciales de habilitación que todavía no existen).
 
 **Fase 2 — Dominio central y modelo multi-tenant** *(código, sin credenciales reales
 todavía)*
@@ -356,7 +386,7 @@ de cualquier negocio concreto, las tablas de catálogos, y el generador de XML U
 (DEE POS primero) contra datos de prueba.
 
 **Fase 3 — Criptografía y transmisión a la DIAN**
-Firma XAdES-BES, cálculo de CUFE/CUDE, cliente del webservice (ambiente de
+Firma XAdES-EPES, cálculo de CUFE/CUDE, cliente del webservice (ambiente de
 habilitación), cola de contingencia/reintento.
 
 **Fase 4 — Alta de tenants**
