@@ -102,7 +102,7 @@ integra (Dorato traduce su `pagos`/`items_pedido` a este contrato).
 
 ---
 
-## 2. Licencia — decisión pendiente, con trade-offs
+## 2. Licencia: BSL 1.1 (decidido, octubre 2026)
 
 Afecta directamente el futuro del proyecto y hay que decidirlo *antes* de aceptar
 código de terceros:
@@ -114,20 +114,39 @@ código de terceros:
 | **BSL / Elastic License** (código visible, uso restringido) | Cualquiera la lee, la audita y la auto-aloja gratis; pero *ofrecerla como servicio hospedado a terceros* requiere licencia comercial | Modelo de Sentry, Elastic, MongoDB (antes). No es "open source" en el sentido estricto (OSI), aunque el código es público |
 | **Dual-license (ej. AGPL + comercial)** | Gratis bajo AGPL para quien se auto-aloje y comparta cambios; licencia comercial de pago para incrustarla en software propietario | Modelo más común para monetizar un proyecto "open source" de verdad (GitLab, MinIO) |
 
-**Recomendación, ahora con la intención de monetizar confirmada: BSL.** Es
-prácticamente el caso de uso para el que se diseñó esa licencia (Sentry, Elastic):
-código visible y auditable, gratis para que cualquiera lo auto-aloje para sí mismo,
-pero *ofrecerlo como servicio alojado a terceros* (justo el producto de pago de la
-sección 2b) requiere una licencia comercial — la tuya. Eso evita que alguien tome el
-motor y lance su propio "Emite hosteado" compitiendo contigo con tu propio código.
-AGPL + dual-license sigue siendo una alternativa razonable (protege distinto: exige
-que cualquiera que lo use para dar un servicio abra sus cambios, en vez de prohibirlo
-sin licencia tuya), pero BSL encaja mejor con un modelo de negocio basado en alojar
-instancias, no en vender módulos cerrados.
+**Decidido: BSL 1.1.** Encaja con el modelo de negocio basado en alojar instancias
+(sección 2b) en vez de vender módulos cerrados: evita que alguien tome el motor y
+lance su propio "Emite hosteado" compitiendo contigo con tu propio código, sin
+cerrarle la puerta a quien solo quiere auto-alojarlo gratis para sí mismo.
 
-Pendiente de decisión final — por eso **todavía no hay archivo `LICENSE`** en este
-repo (sin uno, por defecto el código está bajo "todos los derechos reservados", que
-es la postura más segura mientras se decide).
+El texto completo está en [`LICENSE`](LICENSE) (plantilla oficial de BSL 1.1, sin
+modificar más que los parámetros). Lo que dice en criollo:
+
+- **Gratis, incluso en producción:** auto-alojar Emite para emitir tus propios
+  documentos fiscales, bajo tu propio NIT (o el de empresas bajo tu mismo control).
+  Esto cubre a Dorato y a cualquier empresa que se auto-aloje su propia instancia
+  (sección 3) sin pagarte nada.
+- **Requiere licencia comercial tuya:** ofrecer la funcionalidad de Emite — entera,
+  parcial, o modificada — como servicio alojado/gestionado a un tercero. Esto es
+  exactamente la opción 3 del modelo de negocio (sección 2b): si Emite mismo la
+  ofrece bajo este esquema, lo hace con tu propia licencia comercial; si alguien más
+  quisiera copiar el motor y montar su propio negocio de alojamiento, necesitaría
+  negociar contigo primero.
+- **Fecha de cambio: 1 de octubre de 2030.** A partir de esa fecha (para el código
+  publicado hasta ese momento), la licencia pasa automáticamente a Apache 2.0 —
+  completamente libre, sin restricciones. Es la característica que distingue a BSL
+  de una licencia propietaria pura: no es "cerrado para siempre", tiene una fecha de
+  vencimiento incorporada hacia código abierto de verdad.
+- **Licenciante:** quedó a tu nombre (Gabriel Montoya) porque no existe todavía una
+  empresa constituida para el proyecto. Si en algún momento creas una, es cuestión
+  de actualizar ese campo.
+
+**Importante:** usé la plantilla oficial de BSL 1.1 tal cual la publica MariaDB
+(su texto es reutilizable por diseño), pero **la redacción de la cláusula de uso
+adicional** (qué cuenta como "ofrecer como servicio a terceros") la escribí yo para
+este caso concreto — es la parte que de verdad vale la pena que revise tu abogado
+antes de que alguien dependa de ella comercialmente, junto con el resto de la
+validación legal pendiente (sección 0).
 
 ---
 
@@ -388,7 +407,7 @@ parches de seguridad, revisión de aportes de la comunidad.
    cliente, cobrando una tarifa, sigue siendo "facturador directo" por cliente, o
    acerca a Proveedor Tecnológico? No bloquea construir la infraestructura (Fase 4b),
    solo bloquea venderla a un cliente real.
-6. **Licencia** (sección 2): confirmar BSL como recomendación, o decidir otra.
+6. ~~Licencia~~ **hecho: BSL 1.1** (sección 2, archivo [`LICENSE`](LICENSE)).
 7. ~~Stack técnico~~ **hecho: Java/Kotlin** (sección 5).
 8. **Prioridad relativa**: ¿esto pasa a ser lo siguiente a trabajar, o sigue en cola
    detrás de lo pendiente de arquitectura de Dorato?
