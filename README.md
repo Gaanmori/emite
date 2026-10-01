@@ -242,10 +242,26 @@ identificador interno de la venta en el sistema de origen.
   cómodo para una función serverless ligera. Es un servicio backend aparte,
   desplegado en su propio sitio (VPS pequeño, Fly.io, Railway, Render — a decidir),
   con su propia base de datos.
-- **Stack:** a decidir (sección 9). Candidatos: Node.js/TypeScript (buen ecosistema
-  para XML/firma digital), Python, o Dart backend (`dart_frog`/`shelf`, reutiliza el
-  lenguaje que ya domina el equipo, aunque el ecosistema de firma XAdES/XML-DSig en
-  Dart es más limitado — revisar antes de elegir).
+- **Stack: Java/Kotlin** (decidido, octubre 2026). Se eligió sobre Node/TS, Python y
+  Dart específicamente por la pieza más delicada de todo el proyecto — la firma
+  XAdES-BES —, donde Java tiene la librería más madura y probada en producción:
+  [DSS (Digital Signature Services)](https://github.com/esig/dss) de la Comisión
+  Europea, el estándar de facto para XAdES, usado por varias integraciones de
+  facturación electrónica en LatAm. También aporta un cliente SOAP/XML maduro
+  (Apache CXF/JAX-WS) para los webservices de la DIAN, y manejo nativo de
+  certificados `.p12`/`.pfx` vía `KeyStore`. El costo asumido conscientemente: es un
+  ecosistema nuevo para el equipo (hoy Flutter/Dart + TS en las Edge Functions de
+  Dorato) — pero dado que esto se certifica ante un gobierno y los errores tienen
+  consecuencias reales (sección 0), se prioriza la robustez de la librería de firma
+  sobre la familiaridad del lenguaje. Kotlin es aceptable sobre la JVM si se prefiere
+  una sintaxis más moderna que Java puro — misma librería (DSS), mismo ecosistema.
+  Framework de API sugerido: Spring Boot o Ktor (más liviano, más idiomático en
+  Kotlin) — a definir al empezar la Fase 2.
+- **Cómo se conecta con Dorato (o cualquier otro consumidor): HTTP/REST, nada más.**
+  El lenguaje del motor es invisible para quien lo consume — Dorato sigue siendo
+  Flutter/Dart y nunca necesita saber que Emite está en Java, de la misma forma que
+  hoy no le importa en qué lenguaje está escrita la API de Supabase que ya consume.
+  El detalle de cómo se conecta concretamente está en la sección 10.
 - **Secretos:** los certificados de cada tenant son el activo más sensible del
   proyecto. Necesitan un vault real (HashiCorp Vault, AWS/GCP Secrets Manager, o como
   mínimo cifrado por tenant con una clave que ni el operador del servicio pueda leer
@@ -307,7 +323,8 @@ relación con la DIAN:
 **Fase 0 — Legal y estrategia**
 ~~Confirmar con abogado/contador que el modelo auto-alojado evita el estatus de
 Proveedor Tecnológico~~ **hecho (octubre 2026)**. ~~Decidir nombre del proyecto~~
-**hecho: Emite**. Pendiente: licencia (sección 2).
+**hecho: Emite**. ~~Decidir stack técnico~~ **hecho: Java/Kotlin**. Pendiente:
+licencia (sección 2).
 
 **Fase 1 — Investigación y especificación** *(sin prerrequisitos, se puede arrancar ya)*
 Todo lo de la sección 7: estudiar los dos Anexos Técnicos, documentar catálogos,
@@ -372,7 +389,7 @@ parches de seguridad, revisión de aportes de la comunidad.
    acerca a Proveedor Tecnológico? No bloquea construir la infraestructura (Fase 4b),
    solo bloquea venderla a un cliente real.
 6. **Licencia** (sección 2): confirmar BSL como recomendación, o decidir otra.
-7. **Stack técnico**: ¿Node/TypeScript, Python, o Dart backend?
+7. ~~Stack técnico~~ **hecho: Java/Kotlin** (sección 5).
 8. **Prioridad relativa**: ¿esto pasa a ser lo siguiente a trabajar, o sigue en cola
    detrás de lo pendiente de arquitectura de Dorato?
 
@@ -386,3 +403,42 @@ Lo único que cambia es que el motor que resuelve esa obligación no vive dentro
 `dorato-app`, sino aquí, y Dorato lo consume como un cliente más (el primero). Cuando
 llegue la Fase 6, el código de Dorato que hoy simula el ticket (`recibo_pdf.dart`,
 `EmpresaConfig`) se reemplaza por una llamada real a esta API.
+
+### 10.1 Cómo se conectan en la práctica (Flutter/Dart + Supabase → Emite en Java)
+
+No hay ningún acoplamiento de lenguaje: Dorato nunca llama directamente a clases
+Java, solo hace peticiones HTTP a un API REST, exactamente como ya hace hoy contra
+Supabase. El flujo pensado (se afina en la Fase 6, pero esta es la forma):
+
+1. **La venta en Dorato no espera a la DIAN.** `cobrar_mesa()` (ya construida, ver
+   `supabase/README.md` de `dorato-app`) sigue resolviéndose igual de rápido que
+   hoy — libera la mesa y registra el pago al instante. El documento fiscal se
+   genera *después*, como un paso aparte, para que una DIAN lenta o caída nunca
+   bloquee a un cajero cobrando en el restaurante (esto ya estaba previsto en la
+   sección 4.3, punto 7).
+2. **El disparo no depende de que la app de Flutter siga abierta.** En vez de que el
+   propio cliente Flutter llame a Emite después de cobrar (si se cierra la app a
+   medio camino, se perdería el intento), lo dispara el *servidor*: un **Database
+   Webhook de Supabase** (o un trigger que llama a `pg_net`) en el `INSERT` de la
+   tabla `pagos` invoca una Edge Function nueva de Dorato, p. ej.
+   `emitir-documento-fiscal`.
+3. **Esa Edge Function arma el payload** con el contrato de "venta" de la sección 4.2
+   (traduce `pagos`/`items_pedido`/`productos` al formato neutral que espera Emite)
+   y hace un `POST /tenants/{tenantDorato}/ventas` contra la API de Emite.
+4. **Las credenciales de Dorato ante Emite** (su API key de tenant) viven como
+   secreto de Supabase (mismo patrón que ya usa la `service_role key` en las Edge
+   Functions actuales) — nunca llegan al cliente Flutter.
+5. **Emite responde async.** Cuando la DIAN valida (o rechaza) el documento, Emite
+   llama de vuelta a un webhook de Dorato (otra Edge Function pequeña,
+   `webhook-emite`) con el resultado: CUFE/CUDE, XML firmado, PDF, o el motivo de
+   rechazo si falló.
+6. **Dorato guarda el resultado** (una tabla nueva, algo como
+   `documentos_fiscales`, o una columna sobre `pagos`) y la pantalla de ticket
+   (`ReciboPreviewScreen`, hoy con datos simulados) pasa a mostrar el documento real
+   una vez llega ese webhook — con un estado intermedio ("procesando con la DIAN")
+   mientras tanto.
+
+Este mismo patrón (API key de tenant guardada como secreto server-side + webhook de
+vuelta) es el que usaría *cualquier* otra empresa que adopte Emite, sin importar en
+qué esté escrito su propio sistema — Dorato no tiene ningún trato especial aquí más
+que ser la primera en probarlo.
