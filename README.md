@@ -157,15 +157,20 @@ que necesita más confirmación legal:
    parece a "cobrar por el uso del API" en la intención original): Emite despliega y
    opera la instancia de cada cliente, aislada (su propia base de datos, su propio
    certificado, su propio NIT), y cobra una tarifa mensual o por documento emitido.
-   Es el modelo más parecido a un negocio SaaS tradicional, y **es el que tiene la
-   pregunta legal pendiente marcada con ⚠️ en la sección 0** — no empezar a
-   ofrecerlo como producto hasta tener esa respuesta.
+   Es el modelo más parecido a un negocio SaaS tradicional.
 
-No hay que elegir solo una — son compatibles entre sí (de hecho 1 y 3 normalmente
-van juntos: quien te paga por alojamiento también te está pagando, de facto, el
-mantenimiento). Lo que sí hay que tener claro es que **(1) y (2) se pueden empezar a
-ofrecer apenas el motor funcione**, mientras que **(3) espera a la confirmación
-legal puntual**.
+**Decisión (octubre 2026): se construyen las tres, en paralelo.** La pregunta legal
+puntual de la opción 3 (marcada con ⚠️ en la sección 0) queda a cargo de Gabriel con
+su abogado — no bloquea el trabajo de ingeniería (sí se puede diseñar y construir la
+capacidad de alojamiento gestionado mientras se resuelve), pero **sí bloquea
+ofrecérselo como producto de pago a un cliente real** hasta tener la confirmación.
+Construir ≠ vender: se puede tener la infraestructura lista y validada con la propia
+instancia piloto de Dorato sin que eso cuente como "ya se está cobrando por
+alojamiento a terceros".
+
+No hay que elegir solo una de las tres — son compatibles entre sí (de hecho 1 y 3
+normalmente van juntos: quien paga por alojamiento también está pagando, de facto,
+el mantenimiento).
 
 ---
 
@@ -176,10 +181,12 @@ legal puntual**.
 - El código es el mismo para todos, pero **nunca hay una sola base de datos ni un
   solo proceso transmitiendo documentos de varios NITs distintos**, salvo que el
   propio adoptante corra varias sedes bajo su mismo NIT (eso sí es válido).
-- El alojamiento gestionado por tarifa (ver modelo de negocio, sección 2b, opción 3)
-  sigue este mismo principio — "cada cliente con su instancia aislada" — pero antes
-  de ofrecerlo como producto hace falta la confirmación legal puntual marcada con
-  ⚠️ en la sección 0.
+- El alojamiento gestionado por tarifa (ver modelo de negocio, sección 2b, opción 3,
+  **confirmado para construir**) sigue este mismo principio — "cada cliente con su
+  instancia aislada", nunca una base de datos compartida entre NITs distintos —
+  aunque sea Emite quien la despliegue y la opere. Lanzarlo como producto de pago
+  a un cliente real espera la confirmación legal puntual marcada con ⚠️ en la
+  sección 0 (a cargo de Gabriel con su abogado).
 
 ---
 
@@ -246,6 +253,19 @@ identificador interno de la venta en el sistema de origen.
   cifrar.
 - **Aislamiento por tenant:** cada despliegue real debe tener su propia base de
   datos (o esquema) y su propio certificado — nunca mezclados (ver sección 3).
+- **Aprovisionamiento repetible, por el alojamiento gestionado (sección 2b, opción
+  3):** si Emite va a desplegar y operar la instancia de cada cliente, hace falta
+  automatizar ese despliegue desde el principio (contenedor/imagen por tenant,
+  variables de entorno o secretos inyectados por instancia, una base de datos nueva
+  por cliente) en vez de hacerlo a mano cliente por cliente — si no, no escala más
+  allá de dos o tres clientes. Conviene diseñarlo así desde la Fase 2, aunque el
+  primer cliente real (Dorato) se despliegue manualmente al principio.
+- **Métricas/facturación por tenant:** para cobrar por documento emitido o por
+  suscripción (opción 3), cada instancia necesita reportar su propio consumo (cuántos
+  documentos emitió, en qué período) a algún punto central de facturación — aunque
+  los datos fiscales de cada tenant sigan completamente aislados entre sí, ese conteo
+  de uso si puede centralizarse sin pisar la frontera legal de la sección 0 (es
+  telemetría de uso, no transmisión de documentos a la DIAN en nombre de nadie).
 
 ---
 
@@ -307,6 +327,15 @@ habilitación), cola de contingencia/reintento.
 Almacenamiento seguro de certificados (vault), flujo de alta de una empresa nueva,
 documentación para que una empresa externa configure su propia instancia.
 
+**Fase 4b — Infraestructura de alojamiento gestionado** *(nueva, octubre 2026 —
+confirmada para construir, ver sección 2b opción 3)*
+Automatizar el aprovisionamiento de una instancia aislada nueva por cliente
+(contenedor/imagen + base de datos propia + secretos propios), y el reporte de
+consumo por tenant hacia un punto central de facturación (sección 5). Se puede
+construir y probar con la propia instancia de Dorato sin que eso cuente como
+"vendiendo alojamiento a terceros" — **lanzarlo como producto de pago a un cliente
+real espera la confirmación legal puntual de la sección 0.**
+
 **Fase 5 — Certificación** *(se repite por cada empresa adoptante, incluida Dorato)*
 Correr el set oficial de pruebas de habilitación de la DIAN con las credenciales de
 esa empresa, corregir lo que falle, pasar a producción.
@@ -333,15 +362,18 @@ parches de seguridad, revisión de aportes de la comunidad.
 1. ~~Nombre del proyecto~~ **hecho: Emite.**
 2. ~~Validación legal inicial (modelo auto-alojado por cada empresa)~~ **hecho
    (octubre 2026).**
-3. ~~¿Se monetiza?~~ **hecho: sí, a futuro.** Dorato es la prueba piloto.
-4. **⚠️ Validación legal específica del alojamiento gestionado** (sección 0): ¿operar
-   nosotros la instancia aislada de cada cliente, cobrando una tarifa, sigue siendo
-   "facturador directo" por cliente, o nos acerca a Proveedor Tecnológico? Bloquea
-   solo la opción 3 del modelo de negocio (sección 2b) — las opciones 1 y 2 no
-   dependen de esto.
-5. **Licencia** (sección 2): confirmar BSL como recomendación, o decidir otra.
-6. **Stack técnico**: ¿Node/TypeScript, Python, o Dart backend?
-7. **Prioridad relativa**: ¿esto pasa a ser lo siguiente a trabajar, o sigue en cola
+3. ~~¿Se monetiza?~~ **hecho: sí, a futuro, con las 3 vías de la sección 2b.**
+   Dorato es la prueba piloto.
+4. ~~¿Se construye también el alojamiento gestionado (opción 3)?~~ **hecho: sí, en
+   paralelo a las otras dos.**
+5. **⚠️ En trámite — a cargo de Gabriel con su abogado:** validación legal específica
+   del alojamiento gestionado (sección 0) — ¿operar la instancia aislada de cada
+   cliente, cobrando una tarifa, sigue siendo "facturador directo" por cliente, o
+   acerca a Proveedor Tecnológico? No bloquea construir la infraestructura (Fase 4b),
+   solo bloquea venderla a un cliente real.
+6. **Licencia** (sección 2): confirmar BSL como recomendación, o decidir otra.
+7. **Stack técnico**: ¿Node/TypeScript, Python, o Dart backend?
+8. **Prioridad relativa**: ¿esto pasa a ser lo siguiente a trabajar, o sigue en cola
    detrás de lo pendiente de arquitectura de Dorato?
 
 ---
